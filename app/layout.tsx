@@ -31,7 +31,6 @@ export const metadata: Metadata = {
     images: ["/images/rainier-out.png"],
   },
   icons: {
-    icon: "/favicon.ico",
     apple: "/images/rainier-out.png",
   },
 };
