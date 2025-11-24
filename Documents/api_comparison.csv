@@ -1,0 +1,6 @@
+API Provider,Cost,API Key Required,Cloud Ceiling Data,Horizontal Visibility,Cloud Cover %,Update Frequency,Data Quality,Recommendation
+National Weather Service (NWS),Free,No,Yes (cloudLayers),Yes (meters),Yes (skyCover),Hourly,Official government,PRIMARY - Best free option
+Aviation Weather Center (METAR),Free,No,Yes (best quality),Yes (statute miles),Inferred from layers,Every 20-30 min,Aviation-grade,SECONDARY - Most accurate clouds
+Visual Crossing Weather,Free tier: 1000 calls/day,Yes,No,Yes (miles),Yes (cloudcover),Hourly,Good,TERTIARY - Backup option
+OpenWeatherMap,Free tier: 1000 calls/day,Yes,Limited,Yes (meters),Yes (clouds %),Hourly,Good,Alternative
+Meteomatics,Paid only,Yes,Yes (ceiling_height_agl),Yes (meters),Yes (cloud_cover),Sub-hourly,High-resolution,Not recommended (paid)

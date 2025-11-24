@@ -1,0 +1,491 @@
+
+# ============================================================================
+# MOUNT RAINIER VISIBILITY DETECTOR - SERVERLESS FUNCTION IMPLEMENTATION
+# ============================================================================
+
+# Configuration
+OBSERVER_LAT = 47.6792  # Ballard, Seattle (98117)
+OBSERVER_LON = -122.3860
+RAINIER_ELEVATION_FT = 14400
+OBSERVER_ELEVATION_FT = 200
+DISTANCE_TO_RAINIER_MILES = 64.2
+
+# API Endpoints
+NWS_STATIONS_URL = "https://api.weather.gov/stations/KSEA/observations/latest"
+AVIATION_METAR_URL = "https://aviationweather.gov/api/data/metar?ids=KSEA&format=json"
+NWS_POINTS_URL = "https://api.weather.gov/points/47.6792,-122.3860"
+
+# ============================================================================
+# MAIN FUNCTION
+# ============================================================================
+
+def is_mount_rainier_visible():
+    """
+    Main function to determine if Mount Rainier is visible from Seattle
+    Returns: dict with visibility status and confidence score
+    """
+
+    # Step 1: Fetch weather data
+    weather_data = fetch_weather_data()
+
+    # Step 2: Extract key parameters
+    params = extract_parameters(weather_data)
+
+    # Step 3: Apply decision logic
+    result = evaluate_visibility(params)
+
+    return result
+
+
+# ============================================================================
+# DATA FETCHING FUNCTIONS
+# ============================================================================
+
+def fetch_weather_data():
+    """Fetch weather data from multiple sources for redundancy"""
+
+    data = {
+        'nws_observation': None,
+        'metar': None,
+        'timestamp': current_utc_time()
+    }
+
+    # Primary: NWS Station Observation (KSEA)
+    try:
+        response = http_get(NWS_STATIONS_URL, headers={'User-Agent': 'YourApp/1.0'})
+        data['nws_observation'] = response.json()
+    except Exception as e:
+        log_error(f"NWS API error: {e}")
+
+    # Secondary: Aviation METAR (more reliable for cloud data)
+    try:
+        response = http_get(AVIATION_METAR_URL)
+        data['metar'] = response.json()
+    except Exception as e:
+        log_error(f"METAR API error: {e}")
+
+    return data
+
+
+# ============================================================================
+# PARAMETER EXTRACTION
+# ============================================================================
+
+def extract_parameters(weather_data):
+    """Extract relevant parameters from weather data"""
+
+    params = {
+        'visibility_miles': None,
+        'cloud_ceiling_ft': None,
+        'cloud_cover_pct': None,
+        'has_precipitation': False,
+        'humidity_pct': None,
+        'weather_description': None
+    }
+
+    # Extract from NWS observation
+    if weather_data['nws_observation']:
+        nws = weather_data['nws_observation']['properties']
+
+        # Visibility (convert meters to miles)
+        if nws.get('visibility'):
+            params['visibility_miles'] = nws['visibility']['value'] / 1609.34
+
+        # Cloud layers - find lowest ceiling
+        if nws.get('cloudLayers'):
+            params['cloud_ceiling_ft'] = find_cloud_ceiling(nws['cloudLayers'])
+            params['cloud_cover_pct'] = calculate_cloud_cover(nws['cloudLayers'])
+
+        # Precipitation
+        if nws.get('textDescription'):
+            params['has_precipitation'] = detect_precipitation(nws['textDescription'])
+            params['weather_description'] = nws['textDescription']
+
+        # Humidity
+        if nws.get('relativeHumidity'):
+            params['humidity_pct'] = nws['relativeHumidity']['value']
+
+    # Extract from METAR (override if available - more accurate for aviation)
+    if weather_data['metar']:
+        metar = weather_data['metar'][0]  # Get first METAR
+
+        # Visibility
+        if metar.get('visib'):
+            params['visibility_miles'] = float(metar['visib'])
+
+        # Cloud ceiling from cloud layers
+        if metar.get('clouds'):
+            params['cloud_ceiling_ft'] = parse_metar_ceiling(metar['clouds'])
+            params['cloud_cover_pct'] = parse_metar_cloud_cover(metar['clouds'])
+
+        # Precipitation from weather string
+        if metar.get('wxString'):
+            params['has_precipitation'] = 'RA' in metar['wxString'] or 'SN' in metar['wxString']
+
+    return params
+
+
+def find_cloud_ceiling(cloud_layers):
+    """
+    Find lowest cloud ceiling above ground level
+    Ceiling = lowest BKN (broken) or OVC (overcast) layer
+    """
+    ceiling_ft = None
+
+    for layer in cloud_layers:
+        amount = layer.get('amount', '')
+        base_ft = layer.get('base', {}).get('value', None)
+
+        # Convert meters to feet if needed
+        if base_ft:
+            base_ft = base_ft * 3.28084 if base_ft < 1000 else base_ft
+
+        # BKN = broken (5/8 to 7/8 coverage), OVC = overcast (8/8 coverage)
+        if amount in ['BKN', 'OVC'] and base_ft:
+            if ceiling_ft is None or base_ft < ceiling_ft:
+                ceiling_ft = base_ft
+
+    return ceiling_ft
+
+
+def calculate_cloud_cover(cloud_layers):
+    """Calculate total cloud cover percentage from layers"""
+
+    coverage_map = {
+        'FEW': 12.5,   # Few clouds (1/8 to 2/8)
+        'SCT': 37.5,   # Scattered (3/8 to 4/8)
+        'BKN': 75.0,   # Broken (5/8 to 7/8)
+        'OVC': 100.0   # Overcast (8/8)
+    }
+
+    max_cover = 0
+    for layer in cloud_layers:
+        amount = layer.get('amount', '')
+        cover = coverage_map.get(amount, 0)
+        if cover > max_cover:
+            max_cover = cover
+
+    return max_cover
+
+
+def parse_metar_ceiling(clouds):
+    """Parse METAR cloud data to find ceiling"""
+    ceiling_ft = None
+
+    for cloud in clouds:
+        cover = cloud.get('cover', '')
+        base = cloud.get('base', 0)
+
+        # Base is in hundreds of feet AGL
+        base_ft = base * 100
+
+        if cover in ['BKN', 'OVC']:
+            if ceiling_ft is None or base_ft < ceiling_ft:
+                ceiling_ft = base_ft
+
+    return ceiling_ft
+
+
+def parse_metar_cloud_cover(clouds):
+    """Estimate cloud cover percentage from METAR"""
+    if not clouds:
+        return 0
+
+    coverage_map = {'FEW': 12.5, 'SCT': 37.5, 'BKN': 75.0, 'OVC': 100.0}
+
+    max_cover = 0
+    for cloud in clouds:
+        cover = coverage_map.get(cloud.get('cover', ''), 0)
+        max_cover = max(max_cover, cover)
+
+    return max_cover
+
+
+def detect_precipitation(description):
+    """Detect if there's precipitation from weather description"""
+    precip_keywords = ['rain', 'snow', 'drizzle', 'showers', 'sleet', 'hail']
+    return any(keyword in description.lower() for keyword in precip_keywords)
+
+
+# ============================================================================
+# DECISION LOGIC
+# ============================================================================
+
+def evaluate_visibility(params):
+    """
+    Main decision logic using both rule-based and scoring approaches
+    """
+
+    # Decision Tree Approach (Fast, binary decision)
+    tree_result = decision_tree_evaluation(params)
+
+    # Scoring Approach (Nuanced, probabilistic)
+    score_result = scoring_evaluation(params)
+
+    # Combine both approaches
+    result = {
+        'is_visible': tree_result['is_visible'] and score_result['score'] >= 70,
+        'confidence': score_result['score'],
+        'visibility_status': get_status_text(score_result['score']),
+        'parameters': params,
+        'decision_tree': tree_result,
+        'timestamp': current_utc_time(),
+        'next_check': get_next_optimal_check_time()
+    }
+
+    return result
+
+
+def decision_tree_evaluation(params):
+    """
+    Binary decision tree - fast elimination of clearly not-visible conditions
+    """
+
+    visibility = params['visibility_miles']
+    ceiling = params['cloud_ceiling_ft']
+    precipitation = params['has_precipitation']
+    cloud_cover = params['cloud_cover_pct']
+
+    # Step 1: Check horizontal visibility
+    if visibility is None or visibility < 60:
+        return {
+            'is_visible': False,
+            'reason': f'Insufficient horizontal visibility ({visibility} mi < 60 mi required)'
+        }
+
+    # Step 2: Check for precipitation
+    if precipitation:
+        return {
+            'is_visible': False,
+            'reason': 'Active precipitation obscuring view'
+        }
+
+    # Step 3: Check cloud ceiling
+    # Mountain needs to be visible above ~12,000 ft
+    if ceiling is not None and ceiling < 12000:
+        return {
+            'is_visible': False,
+            'reason': f'Cloud ceiling too low ({ceiling:.0f} ft < 12,000 ft required)'
+        }
+
+    # Step 4: Check cloud cover
+    if cloud_cover is not None and cloud_cover > 75:
+        return {
+            'is_visible': False,
+            'reason': f'Heavy cloud cover ({cloud_cover:.0f}% > 75%)'
+        }
+
+    # Passed all checks
+    return {
+        'is_visible': True,
+        'reason': 'All visibility conditions met'
+    }
+
+
+def scoring_evaluation(params):
+    """
+    Weighted scoring system (0-100) for nuanced visibility prediction
+    """
+
+    # Weights (sum to 1.0)
+    weights = {
+        'visibility': 0.35,
+        'ceiling': 0.30,
+        'cloud_cover': 0.20,
+        'precipitation': 0.10,
+        'humidity': 0.05
+    }
+
+    # Calculate individual scores
+    scores = {
+        'visibility': score_visibility(params['visibility_miles']),
+        'ceiling': score_ceiling(params['cloud_ceiling_ft']),
+        'cloud_cover': score_cloud_cover(params['cloud_cover_pct']),
+        'precipitation': score_precipitation(params['has_precipitation']),
+        'humidity': score_humidity(params['humidity_pct'])
+    }
+
+    # Calculate weighted total
+    total_score = sum(scores[key] * weights[key] for key in weights.keys())
+
+    return {
+        'score': total_score,
+        'breakdown': scores
+    }
+
+
+# ============================================================================
+# SCORING FUNCTIONS
+# ============================================================================
+
+def score_visibility(visibility_miles):
+    """Score horizontal visibility (0-100)"""
+    if visibility_miles is None:
+        return 50  # Unknown, assume moderate
+    elif visibility_miles >= 65:
+        return 100
+    elif visibility_miles >= 50:
+        return 70
+    elif visibility_miles >= 30:
+        return 50
+    elif visibility_miles >= 10:
+        return 20
+    else:
+        return 0
+
+
+def score_ceiling(ceiling_ft):
+    """Score cloud ceiling height (0-100)"""
+    if ceiling_ft is None:
+        return 100  # No ceiling detected = clear
+    elif ceiling_ft >= 14000:
+        return 100
+    elif ceiling_ft >= 11500:
+        return 70
+    elif ceiling_ft >= 8000:
+        return 40
+    elif ceiling_ft >= 5000:
+        return 20
+    else:
+        return 0
+
+
+def score_cloud_cover(cloud_cover_pct):
+    """Score cloud cover percentage (0-100)"""
+    if cloud_cover_pct is None:
+        return 50  # Unknown
+    elif cloud_cover_pct <= 25:
+        return 100
+    elif cloud_cover_pct <= 50:
+        return 60
+    elif cloud_cover_pct <= 75:
+        return 30
+    else:
+        return 0
+
+
+def score_precipitation(has_precipitation):
+    """Score precipitation (0-100)"""
+    return 0 if has_precipitation else 100
+
+
+def score_humidity(humidity_pct):
+    """Score relative humidity (0-100)"""
+    if humidity_pct is None:
+        return 50  # Unknown
+    elif humidity_pct < 70:
+        return 100
+    elif humidity_pct < 85:
+        return 50
+    else:
+        return 0
+
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+def get_status_text(score):
+    """Convert numeric score to text status"""
+    if score >= 80:
+        return "Likely Visible"
+    elif score >= 60:
+        return "Possibly Visible"
+    elif score >= 40:
+        return "Unlikely Visible"
+    else:
+        return "Not Visible"
+
+
+def get_next_optimal_check_time():
+    """
+    Suggest next optimal time to check visibility
+    Based on typical Seattle weather patterns
+    """
+    current_hour = get_current_hour_local()
+
+    # Best visibility windows: 7-11am and 4-7pm
+    if current_hour < 7:
+        return "7:00 AM (morning clearing)"
+    elif current_hour < 11:
+        return "Current time is optimal (morning)"
+    elif current_hour < 16:
+        return "4:00 PM (evening clearing)"
+    elif current_hour < 19:
+        return "Current time is optimal (evening)"
+    else:
+        return "7:00 AM tomorrow (morning clearing)"
+
+
+# ============================================================================
+# AWS LAMBDA HANDLER (Example deployment)
+# ============================================================================
+
+def lambda_handler(event, context):
+    """
+    AWS Lambda handler for serverless deployment
+    """
+    try:
+        result = is_mount_rainier_visible()
+
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps(result)
+        }
+
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'error': str(e)})
+        }
+
+
+# ============================================================================
+# EXAMPLE API RESPONSE
+# ============================================================================
+
+# Example response when mountain is visible:
+{
+    "is_visible": true,
+    "confidence": 92,
+    "visibility_status": "Likely Visible",
+    "parameters": {
+        "visibility_miles": 75,
+        "cloud_ceiling_ft": 15000,
+        "cloud_cover_pct": 15,
+        "has_precipitation": false,
+        "humidity_pct": 65,
+        "weather_description": "Clear"
+    },
+    "decision_tree": {
+        "is_visible": true,
+        "reason": "All visibility conditions met"
+    },
+    "timestamp": "2025-11-15T14:00:00Z",
+    "next_check": "4:00 PM (evening clearing)"
+}
+
+# Example response when mountain is not visible:
+{
+    "is_visible": false,
+    "confidence": 25,
+    "visibility_status": "Not Visible",
+    "parameters": {
+        "visibility_miles": 5,
+        "cloud_ceiling_ft": 2000,
+        "cloud_cover_pct": 100,
+        "has_precipitation": true,
+        "humidity_pct": 95,
+        "weather_description": "Light Rain"
+    },
+    "decision_tree": {
+        "is_visible": false,
+        "reason": "Insufficient horizontal visibility (5 mi < 60 mi required)"
+    },
+    "timestamp": "2025-11-15T14:00:00Z",
+    "next_check": "7:00 AM tomorrow (morning clearing)"
+}

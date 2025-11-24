@@ -1,0 +1,6 @@
+Weather Parameter,Critical Threshold,Optimal Threshold,Weight in Score,Data Source
+Horizontal Visibility,≥ 60 miles,≥ 65 miles (unlimited),35%,NWS visibility or METAR visib
+Cloud Ceiling (AGL),"> 12,000 ft","> 15,000 ft or clear",30%,METAR clouds[] or NWS cloudLayers
+Cloud Cover Percentage,< 40%,< 25%,20%,Visual Crossing cloudcover or NWS skyCover
+Precipitation,None,None,10%,NWS textDescription or METAR wxString
+Relative Humidity,< 70%,< 60%,5%,NWS relativeHumidity

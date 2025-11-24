@@ -1,0 +1,121 @@
+
+MOUNT RAINIER VISIBILITY DETECTION - COMPLETE IMPLEMENTATION GUIDE
+═══════════════════════════════════════════════════════════════════════════════
+
+GEOGRAPHIC CONTEXT:
+  Distance from Ballard (98117) to Mt. Rainier: 64.2 miles
+  Observer elevation: ~200 ft MSL
+  Mt. Rainier summit: 14,400 ft MSL
+  Earth curvature drop over distance: ~2,752 ft
+  Visible mountain height above horizon: ~11,450 ft
+
+     Weather Parameter Critical Threshold      Optimal Threshold Weight in Score                                Data Source
+ Horizontal Visibility         ≥ 60 miles ≥ 65 miles (unlimited)             35%              NWS visibility or METAR visib
+   Cloud Ceiling (AGL)        > 12,000 ft   > 15,000 ft or clear             30%          METAR clouds[] or NWS cloudLayers
+Cloud Cover Percentage              < 40%                  < 25%             20% Visual Crossing cloudcover or NWS skyCover
+         Precipitation               None                   None             10%      NWS textDescription or METAR wxString
+     Relative Humidity              < 70%                  < 60%              5%                       NWS relativeHumidity
+
+                   API Provider                      Cost API Key Required       Cloud Ceiling Data Horizontal Visibility        Cloud Cover % Update Frequency        Data Quality                   Recommendation
+ National Weather Service (NWS)                      Free               No        Yes (cloudLayers)          Yes (meters)       Yes (skyCover)           Hourly Official government       PRIMARY - Best free option
+Aviation Weather Center (METAR)                      Free               No       Yes (best quality)   Yes (statute miles) Inferred from layers  Every 20-30 min      Aviation-grade SECONDARY - Most accurate clouds
+        Visual Crossing Weather Free tier: 1000 calls/day              Yes                       No           Yes (miles)     Yes (cloudcover)           Hourly                Good         TERTIARY - Backup option
+                 OpenWeatherMap Free tier: 1000 calls/day              Yes                  Limited          Yes (meters)       Yes (clouds %)           Hourly                Good                      Alternative
+                    Meteomatics                 Paid only              Yes Yes (ceiling_height_agl)          Yes (meters)    Yes (cloud_cover)       Sub-hourly     High-resolution           Not recommended (paid)
+
+
+PRIMARY API: National Weather Service
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Station Observations (KSEA - Seattle-Tacoma Airport):
+  URL: https://api.weather.gov/stations/KSEA/observations/latest
+  Method: GET
+  Headers: {'User-Agent': 'YourApp/1.0 (contact@yourdomain.com)'}
+
+  Key Response Fields:
+    - properties.visibility.value (meters)
+    - properties.cloudLayers[] (array of cloud layers)
+      └─ base.value (meters AGL)
+      └─ amount (FEW/SCT/BKN/OVC)
+    - properties.relativeHumidity.value (%)
+    - properties.textDescription (weather description)
+
+Point Forecast Grid (for 98117 coordinates):
+  URL: https://api.weather.gov/points/47.6792,-122.3860
+  Returns: Grid location and forecast endpoints
+
+
+SECONDARY API: Aviation Weather Center METAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+METAR Data (KSEA):
+  URL: https://aviationweather.gov/api/data/metar?ids=KSEA&format=json
+  Method: GET
+
+  Key Response Fields:
+    - visib (statute miles)
+    - clouds[] (array of cloud layers)
+      └─ cover (FEW/SCT/BKN/OVC)
+      └─ base (hundreds of feet AGL)
+    - wxString (weather codes: RA=rain, SN=snow, etc.)
+    - relh (relative humidity %)
+
+
+TERTIARY API: Visual Crossing (requires API key)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Timeline Weather:
+  URL: https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/Seattle,WA
+  Parameters: ?unitGroup=us&key=YOUR_API_KEY
+
+  Key Response Fields:
+    - currentConditions.cloudcover (0-100%)
+    - currentConditions.visibility (miles)
+    - currentConditions.conditions (text description)
+    - currentConditions.humidity (%)
+
+
+
+BEST VISIBILITY CONDITIONS:
+  • 1-2 days after cold front passage (post-frontal clearing)
+  • High pressure system with northerly/easterly winds
+  • Clear mornings after overnight clearing (7am-11am)
+  • Late afternoon before sunset (4pm-7pm)
+  • Spring and early summer mornings after marine layer burns off
+
+WORST VISIBILITY CONDITIONS:
+  • Atmospheric river events (heavy rain for days)
+  • Winter inversions (November-February: trapped pollution/fog)
+  • Mid-day in summer (heat-induced haze)
+  • During any precipitation
+  • Marine layer mornings (May-September before 10am)
+
+SEASONAL PATTERNS:
+  • Summer (Jun-Aug): Marine layer mornings, clear afternoons. Best season overall.
+  • Fall (Sep-Nov): Variable. Post-storm clearing = exceptional visibility.
+  • Winter (Dec-Feb): Frequent clouds, inversions. Rare clear days are stunning.
+  • Spring (Mar-May): Improving conditions, marine layer begins.
+
+
+IMPLEMENTATION APPROACH:
+  1. Dual-API approach: NWS (primary) + METAR (secondary) for redundancy
+  2. Decision tree for fast binary determination (visible/not visible)
+  3. Weighted scoring system for confidence level (0-100 scale)
+  4. Combine both: Only report "visible" if tree passes AND score ≥ 70
+
+DEPLOYMENT OPTIONS:
+  • AWS Lambda (serverless, scheduled every 15-30 minutes)
+  • Vercel/Netlify Functions (serverless edge functions)
+  • Cloudflare Workers (edge computing, global CDN)
+  • Simple cron job + static hosting (most cost-effective)
+
+CACHING STRATEGY:
+  • Cache API responses for 15 minutes (weather doesn't change faster)
+  • Use HTTP conditional requests (If-Modified-Since header)
+  • Store historical visibility data for pattern analysis
+
+ERROR HANDLING:
+  • Graceful fallback if primary API fails (use METAR)
+  • Handle missing data (return "unknown" vs "not visible")
+  • Rate limit protection (cache aggressively)
+  • Timeout handling (APIs can be slow)
