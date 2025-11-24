@@ -9,7 +9,11 @@ import type { WeatherData } from '@/types/weather';
 
 const REFRESH_INTERVAL = 15 * 60 * 1000; // 15 minutes in milliseconds
 
-export default function Home() {
+export default function Home({
+  searchParams,
+}: {
+  searchParams: { state?: string };
+}) {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -25,6 +29,15 @@ export default function Home() {
       }
 
       const data: WeatherData = await response.json();
+
+      // Allow overriding state via URL parameter for testing (e.g. ?state=SNOWING)
+      if (searchParams.state && process.env.NODE_ENV === 'development') {
+        const overrideState = searchParams.state.toUpperCase();
+        if (['RAINING', 'RAINIER_OUT', 'DRY', 'SNOWING'].includes(overrideState)) {
+          data.state = overrideState as any;
+        }
+      }
+
       setWeatherData(data);
       setError(false);
     } catch (err) {

@@ -14,6 +14,13 @@ const videoMap: Record<WeatherState, string> = {
   SNOWING: '/videos/snowing.mp4',
 };
 
+const posterMap: Record<WeatherState, string> = {
+  RAINING: '/images/raining.png',
+  RAINIER_OUT: '/images/rainier-out.png',
+  DRY: '/images/dry.png',
+  SNOWING: '/images/snowing.png',
+};
+
 export function BackgroundVideo({ state }: BackgroundVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -37,6 +44,7 @@ export function BackgroundVideo({ state }: BackgroundVideoProps) {
         muted
         playsInline
         preload="auto"
+        poster={posterMap[state]}
       >
         <source src={videoMap[state]} type="video/mp4" />
       </video>
