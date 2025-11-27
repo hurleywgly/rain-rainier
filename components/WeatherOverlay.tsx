@@ -20,8 +20,8 @@ export function WeatherOverlay({ data }: WeatherOverlayProps) {
       {/* Seattle = Didot Bold 120pt, -6% letter spacing */}
       {/* State = Didot Bold 180pt, -6% letter spacing */}
       <h1 className="font-serif font-bold text-cream drop-shadow-2xl leading-tight tracking-[-0.06em]">
-        <div className="text-6xl sm:text-7xl md:text-8xl lg:text-[100px] xl:text-[120px]">Seattle,</div>
-        <div className="text-7xl sm:text-8xl md:text-9xl lg:text-[150px] xl:text-[180px]">{stateTextMap[data.state]}</div>
+        <div className="text-5xl sm:text-7xl md:text-8xl lg:text-[100px] xl:text-[120px]">Seattle,</div>
+        <div className="text-6xl sm:text-8xl md:text-9xl lg:text-[150px] xl:text-[180px]">{stateTextMap[data.state]}</div>
       </h1>
 
       {/* Spacer to push weather data to bottom */}
@@ -38,7 +38,7 @@ export function WeatherOverlay({ data }: WeatherOverlayProps) {
             Temperature
           </div>
           <div className="text-white drop-shadow-lg">
-            <span className="text-[100px] sm:text-5xl md:text-6xl lg:text-[64px] font-sans font-medium leading-none">{Math.round(data.temperature)}</span>
+            <span className="text-[80px] sm:text-5xl md:text-6xl lg:text-[64px] font-sans font-medium leading-none">{Math.round(data.temperature)}</span>
             <span className="text-6xl sm:text-4xl md:text-5xl font-sans font-medium">°</span>
           </div>
         </div>
