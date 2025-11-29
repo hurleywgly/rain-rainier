@@ -55,7 +55,7 @@ export function BackgroundVideo({ state }: BackgroundVideoProps) {
         playsInline
         preload="metadata"
         poster={posterMap[state]}
-        onCanPlayThrough={() => setVideoLoaded(true)}
+        onCanPlay={() => setVideoLoaded(true)}
       >
         <source src={videoMap[state]} type="video/mp4" />
       </video>
