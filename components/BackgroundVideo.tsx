@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { WeatherState } from '@/types/weather';
 
 interface BackgroundVideoProps {
@@ -23,9 +23,11 @@ const posterMap: Record<WeatherState, string> = {
 
 export function BackgroundVideo({ state }: BackgroundVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
 
   useEffect(() => {
-    // Restart video when state changes
+    // Reset loaded state and restart video when state changes
+    setVideoLoaded(false);
     if (videoRef.current) {
       videoRef.current.load();
       videoRef.current.play().catch(err => {
@@ -36,15 +38,24 @@ export function BackgroundVideo({ state }: BackgroundVideoProps) {
 
   return (
     <div className="fixed inset-0 w-full h-full overflow-hidden">
+      {/* Poster image shown immediately as background */}
+      <div
+        className="absolute inset-0 w-full h-full bg-cover bg-center"
+        style={{ backgroundImage: `url(${posterMap[state]})` }}
+      />
+      {/* Video fades in when loaded */}
       <video
         ref={videoRef}
-        className="absolute inset-0 w-full h-full object-cover"
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+          videoLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
         autoPlay
         loop
         muted
         playsInline
-        preload="auto"
+        preload="metadata"
         poster={posterMap[state]}
+        onCanPlayThrough={() => setVideoLoaded(true)}
       >
         <source src={videoMap[state]} type="video/mp4" />
       </video>

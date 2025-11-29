@@ -1,18 +1,60 @@
-import type { WeatherData, WeatherParameters, VisibilityResult, CloudLayer, METARCloud } from '@/types/weather';
+import type {
+  WeatherData,
+  WeatherParameters,
+  VisibilityResult,
+  CloudLayer,
+  METARCloud,
+  NWSObservation,
+  METARResponse,
+  WeatherFetchResult,
+  DataStatus
+} from '@/types/weather';
 
 // Configuration
 const NWS_STATIONS_URL = "https://api.weather.gov/stations/KSEA/observations/latest";
 const AVIATION_METAR_URL = "https://aviationweather.gov/api/data/metar?ids=KSEA&format=json";
 const NWS_CONTACT_EMAIL = process.env.NWS_CONTACT_EMAIL || "contact@example.com";
+const FETCH_TIMEOUT_MS = 10000; // 10 second timeout
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit & { next?: { revalidate: number } },
+  timeout: number = FETCH_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 // ============================================================================
 // MAIN FUNCTION
 // ============================================================================
 
 export async function getWeatherData(): Promise<WeatherData> {
+  let dataStatus: DataStatus = 'fresh';
+
   try {
     // Step 1: Fetch weather data from APIs
     const weatherData = await fetchWeatherData();
+
+    // Check if we got any data
+    const hasData = weatherData.nws_observation !== null || weatherData.metar !== null;
+    if (!hasData) {
+      dataStatus = 'error';
+    }
 
     // Step 2: Extract parameters
     const params = extractParameters(weatherData);
@@ -28,10 +70,11 @@ export async function getWeatherData(): Promise<WeatherData> {
       precipitationChance: params.hasPrecipitation ? 100 : 0,
       visibility: params.visibilityMiles || 0,
       timestamp: new Date().toISOString(),
+      dataStatus,
     };
   } catch (error) {
     console.error('Error fetching weather data:', error);
-    // Return fallback data
+    // Return fallback data with error status
     return {
       state: 'DRY',
       temperature: 0,
@@ -39,6 +82,7 @@ export async function getWeatherData(): Promise<WeatherData> {
       precipitationChance: 0,
       visibility: 0,
       timestamp: new Date().toISOString(),
+      dataStatus: 'error',
     };
   }
 }
@@ -47,12 +91,8 @@ export async function getWeatherData(): Promise<WeatherData> {
 // DATA FETCHING
 // ============================================================================
 
-async function fetchWeatherData() {
-  const data: {
-    nws_observation: any;
-    metar: any;
-    timestamp: string;
-  } = {
+async function fetchWeatherData(): Promise<WeatherFetchResult> {
+  const data: WeatherFetchResult = {
     nws_observation: null,
     metar: null,
     timestamp: new Date().toISOString(),
@@ -60,7 +100,7 @@ async function fetchWeatherData() {
 
   // Fetch NWS observation
   try {
-    const response = await fetch(NWS_STATIONS_URL, {
+    const response = await fetchWithTimeout(NWS_STATIONS_URL, {
       headers: {
         'User-Agent': `RainOrRainier/1.0 (${NWS_CONTACT_EMAIL})`,
       },
@@ -68,24 +108,32 @@ async function fetchWeatherData() {
     });
 
     if (response.ok) {
-      data.nws_observation = await response.json();
+      data.nws_observation = await response.json() as NWSObservation;
     }
   } catch (error) {
-    console.error('NWS API error:', error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('NWS API timeout');
+    } else {
+      console.error('NWS API error:', error);
+    }
   }
 
   // Fetch METAR data
   try {
-    const response = await fetch(AVIATION_METAR_URL, {
+    const response = await fetchWithTimeout(AVIATION_METAR_URL, {
       next: { revalidate: 900 }, // Cache for 15 minutes
     });
 
     if (response.ok) {
-      const metarData = await response.json();
+      const metarData = await response.json() as METARResponse[];
       data.metar = metarData;
     }
   } catch (error) {
-    console.error('METAR API error:', error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('METAR API timeout');
+    } else {
+      console.error('METAR API error:', error);
+    }
   }
 
   return data;
@@ -95,7 +143,7 @@ async function fetchWeatherData() {
 // PARAMETER EXTRACTION
 // ============================================================================
 
-function extractParameters(weatherData: any): WeatherParameters {
+function extractParameters(weatherData: WeatherFetchResult): WeatherParameters {
   const params: WeatherParameters = {
     visibilityMiles: null,
     cloudCeilingFt: null,
@@ -117,14 +165,14 @@ function extractParameters(weatherData: any): WeatherParameters {
     }
 
     // Temperature (convert Celsius to Fahrenheit)
-    if (nws.temperature?.value !== null) {
+    if (nws.temperature && nws.temperature.value !== null) {
       params.temperature = (nws.temperature.value * 9/5) + 32;
     }
 
     // Feels like temperature (convert Celsius to Fahrenheit)
-    if (nws.windChill?.value !== null) {
+    if (nws.windChill && nws.windChill.value !== null) {
       params.feelsLike = (nws.windChill.value * 9/5) + 32;
-    } else if (nws.heatIndex?.value !== null) {
+    } else if (nws.heatIndex && nws.heatIndex.value !== null) {
       params.feelsLike = (nws.heatIndex.value * 9/5) + 32;
     } else {
       params.feelsLike = params.temperature;
@@ -143,7 +191,7 @@ function extractParameters(weatherData: any): WeatherParameters {
     }
 
     // Humidity
-    if (nws.relativeHumidity?.value !== null) {
+    if (nws.relativeHumidity && nws.relativeHumidity.value !== null) {
       params.humidityPct = nws.relativeHumidity.value;
     }
   }

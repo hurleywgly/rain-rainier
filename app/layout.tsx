@@ -49,6 +49,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${didot.variable} ${gotham.variable}`}>
+      <head>
+        {/* Preload the most common state video (DRY) for faster initial load */}
+        <link rel="preload" href="/videos/dry.mp4" as="video" type="video/mp4" />
+        {/* Preload poster image for immediate display */}
+        <link rel="preload" href="/images/dry.png" as="image" />
+      </head>
       <body className="antialiased">
         {children}
       </body>

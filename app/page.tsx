@@ -33,8 +33,9 @@ export default function Home({
       // Allow overriding state via URL parameter for testing (e.g. ?state=SNOWING)
       if (searchParams.state && process.env.NODE_ENV === 'development') {
         const overrideState = searchParams.state.toUpperCase();
-        if (['RAINING', 'RAINIER_OUT', 'DRY', 'SNOWING'].includes(overrideState)) {
-          data.state = overrideState as any;
+        const validStates = ['RAINING', 'RAINIER_OUT', 'DRY', 'SNOWING'] as const;
+        if (validStates.includes(overrideState as typeof validStates[number])) {
+          data.state = overrideState as typeof validStates[number];
         }
       }
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import type { WeatherData } from '@/types/weather';
 
 interface WeatherOverlayProps {
@@ -13,7 +14,25 @@ const stateTextMap = {
   SNOWING: "It's Snowing.",
 };
 
+function getTimeAgo(timestamp: string): string {
+  const now = new Date();
+  const then = new Date(timestamp);
+  const diffMs = now.getTime() - then.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins === 1) return '1 min ago';
+  if (diffMins < 60) return `${diffMins} mins ago`;
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours === 1) return '1 hour ago';
+  return `${diffHours} hours ago`;
+}
+
 export function WeatherOverlay({ data }: WeatherOverlayProps) {
+  const timeAgo = useMemo(() => getTimeAgo(data.timestamp), [data.timestamp]);
+  const isStale = data.dataStatus === 'stale';
+  const isError = data.dataStatus === 'error';
   return (
     <div className="relative z-10 flex flex-col min-h-screen px-12 sm:px-20 lg:px-36 pt-24 sm:pt-16 lg:pt-24 pb-36 sm:pb-32">
       {/* Main headline - upper left */}
@@ -26,6 +45,21 @@ export function WeatherOverlay({ data }: WeatherOverlayProps) {
 
       {/* Spacer to push weather data to bottom */}
       <div className="flex-1" />
+
+      {/* Data status indicator */}
+      {(isError || isStale) && (
+        <div className="mb-4 flex items-center gap-2 text-white/70">
+          <span className={`w-2 h-2 rounded-full ${isError ? 'bg-amber-400' : 'bg-yellow-400'}`} />
+          <span className="font-sans text-sm">
+            {isError ? 'Weather data may be unavailable' : 'Data may be outdated'}
+          </span>
+        </div>
+      )}
+
+      {/* Last updated indicator */}
+      <div className="mb-4 text-white/50 font-sans text-xs">
+        Updated {timeAgo}
+      </div>
 
       {/* Weather data - bottom left */}
       {/* Mobile: Hero Temp + Row of 3 */}
