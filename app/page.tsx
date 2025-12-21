@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BackgroundVideo } from '@/components/BackgroundVideo';
 import { WeatherOverlay } from '@/components/WeatherOverlay';
 import { LoadingState } from '@/components/LoadingState';
 import { Footer } from '@/components/Footer';
 import type { WeatherData } from '@/types/weather';
 
-const REFRESH_INTERVAL = 15 * 60 * 1000; // 15 minutes in milliseconds
+const REFRESH_INTERVAL = 60 * 1000; // 1 minute in milliseconds
 
 export default function Home({
   searchParams,
@@ -18,7 +18,7 @@ export default function Home({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const fetchWeather = async () => {
+  const fetchWeather = useCallback(async () => {
     try {
       const response = await fetch('/api/weather', {
         cache: 'no-store',
@@ -47,20 +47,33 @@ export default function Home({
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchParams.state]);
 
   useEffect(() => {
     // Initial fetch
     fetchWeather();
 
-    // Set up auto-refresh interval
+    // Set up auto-refresh interval and focus/visibility refresh
     const interval = setInterval(() => {
       fetchWeather();
     }, REFRESH_INTERVAL);
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchWeather();
+      }
+    };
+
+    window.addEventListener('focus', fetchWeather);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Cleanup interval on unmount
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', fetchWeather);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchWeather]);
 
   if (loading) {
     return <LoadingState />;

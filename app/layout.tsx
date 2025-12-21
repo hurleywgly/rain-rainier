@@ -3,6 +3,7 @@ import { didot, gotham } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://rain-or-rainier.netlify.app"),
   title: "Rain or Rainier | Seattle Weather",
   description: "Is it raining, or is Rainier out? Find out instantly with beautiful, real-time Seattle weather.",
   keywords: ["Seattle weather", "Mount Rainier", "rain", "Pacific Northwest", "Seattle", "weather"],

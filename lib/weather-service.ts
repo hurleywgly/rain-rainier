@@ -104,7 +104,7 @@ async function fetchWeatherData(): Promise<WeatherFetchResult> {
       headers: {
         'User-Agent': `RainOrRainier/1.0 (${NWS_CONTACT_EMAIL})`,
       },
-      next: { revalidate: 900 }, // Cache for 15 minutes
+      next: { revalidate: 60 }, // Cache for 1 minute
     });
 
     if (response.ok) {
@@ -121,7 +121,7 @@ async function fetchWeatherData(): Promise<WeatherFetchResult> {
   // Fetch METAR data
   try {
     const response = await fetchWithTimeout(AVIATION_METAR_URL, {
-      next: { revalidate: 900 }, // Cache for 15 minutes
+      next: { revalidate: 60 }, // Cache for 1 minute
     });
 
     if (response.ok) {
