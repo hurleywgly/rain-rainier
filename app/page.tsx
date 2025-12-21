@@ -1,24 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BackgroundVideo } from '@/components/BackgroundVideo';
 import { WeatherOverlay } from '@/components/WeatherOverlay';
 import { LoadingState } from '@/components/LoadingState';
 import { Footer } from '@/components/Footer';
 import type { WeatherData } from '@/types/weather';
 
-const REFRESH_INTERVAL = 15 * 60 * 1000; // 15 minutes in milliseconds
+const REFRESH_INTERVAL = 60 * 1000; // 1 minute in milliseconds
 
 export default function Home({
   searchParams,
 }: {
-  searchParams: { state?: string };
+  searchParams: { state?: string; debug?: string };
 }) {
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [fetchMetrics, setFetchMetrics] = useState<{
+    durationMs: number;
+    ageSeconds?: number;
+    cacheControl?: string;
+    responseDate?: string;
+  } | null>(null);
 
-  const fetchWeather = async () => {
+  const isDebugMode =
+    searchParams.debug?.toLowerCase() === 'true' || searchParams.debug === '1';
+
+  const fetchWeather = useCallback(async () => {
+    const startTime = performance.now();
+
     try {
       const response = await fetch('/api/weather', {
         cache: 'no-store',
@@ -29,6 +41,17 @@ export default function Home({
       }
 
       const data: WeatherData = await response.json();
+      const durationMs = Math.round(performance.now() - startTime);
+
+      setFetchMetrics({
+        durationMs,
+        ageSeconds: response.headers.get('age')
+          ? Number(response.headers.get('age'))
+          : undefined,
+        cacheControl: response.headers.get('cache-control') ?? undefined,
+        responseDate: response.headers.get('date') ?? undefined,
+      });
+      setLastUpdated(Date.now());
 
       // Allow overriding state via URL parameter for testing (e.g. ?state=SNOWING)
       if (searchParams.state && process.env.NODE_ENV === 'development') {
@@ -47,20 +70,33 @@ export default function Home({
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchParams.state]);
 
   useEffect(() => {
     // Initial fetch
     fetchWeather();
 
-    // Set up auto-refresh interval
+    // Set up auto-refresh interval and focus/visibility refresh
     const interval = setInterval(() => {
       fetchWeather();
     }, REFRESH_INTERVAL);
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchWeather();
+      }
+    };
+
+    window.addEventListener('focus', fetchWeather);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Cleanup interval on unmount
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', fetchWeather);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchWeather]);
 
   if (loading) {
     return <LoadingState />;
@@ -91,6 +127,30 @@ export default function Home({
       <BackgroundVideo state={weatherData.state} />
       <WeatherOverlay data={weatherData} />
       <Footer />
+      {isDebugMode ? (
+        <div className="absolute bottom-4 left-4 z-50 max-w-xs rounded-lg bg-black/70 p-3 text-xs font-mono text-white shadow-lg">
+          <div className="text-sm font-semibold">Weather Debug</div>
+          <div className="mt-1 space-y-1">
+            <div>
+              Last fetch:{' '}
+              {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : '—'}
+            </div>
+            <div>
+              Duration: {fetchMetrics ? `${fetchMetrics.durationMs} ms` : '—'}
+            </div>
+            <div>
+              Cache age:{' '}
+              {fetchMetrics?.ageSeconds !== undefined ? `${fetchMetrics.ageSeconds}s` : '—'}
+            </div>
+            <div className="truncate">
+              Cache-Control: {fetchMetrics?.cacheControl ?? '—'}
+            </div>
+            <div className="truncate">
+              Response date: {fetchMetrics?.responseDate ?? '—'}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

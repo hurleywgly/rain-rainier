@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getWeatherData } from '@/lib/weather-service';
 
-export const revalidate = 900; // Revalidate every 15 minutes
+const CACHE_SECONDS = 60;
+
+export const revalidate = CACHE_SECONDS; // Revalidate every minute
 
 export async function GET() {
   try {
@@ -9,7 +11,7 @@ export async function GET() {
 
     return NextResponse.json(weatherData, {
       headers: {
-        'Cache-Control': 'public, s-maxage=900, stale-while-revalidate=1800',
+        'Cache-Control': `public, s-maxage=${CACHE_SECONDS}, stale-while-revalidate=${CACHE_SECONDS * 2}`,
       },
     });
   } catch (error) {
