@@ -17,10 +17,10 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/images/rainier-out.png",
-        width: 1200,
-        height: 630,
-        alt: "Mount Rainier visible from Seattle",
+        url: "/og-image.png",
+        width: 1680,
+        height: 945,
+        alt: "Rain or Rainier - Seattle weather showing four states: Rainier Out, Dry, Raining, and Snowing",
       },
     ],
   },
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     title: "Rain or Rainier | Seattle Weather",
     description: "Is it raining, or is Rainier out? Find out instantly with beautiful, real-time Seattle weather.",
     creator: "@rywigs",
-    images: ["/images/rainier-out.png"],
+    images: ["/og-image.png"],
   },
   icons: {
     icon: "/favicon.ico",
