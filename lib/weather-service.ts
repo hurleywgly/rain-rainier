@@ -340,10 +340,10 @@ function decisionTreeEvaluation(params: WeatherParameters): { isVisible: boolean
   const { visibilityMiles, cloudCeilingFt, hasPrecipitation, cloudCoverPct } = params;
 
   // Check horizontal visibility
-  if (visibilityMiles === null || visibilityMiles < 60) {
+  if (visibilityMiles === null || visibilityMiles < 10) {
     return {
       isVisible: false,
-      reason: `Insufficient horizontal visibility (${visibilityMiles} mi < 60 mi required)`,
+      reason: `Insufficient horizontal visibility (${visibilityMiles} mi < 10 mi required)`,
     };
   }
 
@@ -407,10 +407,10 @@ function scoringEvaluation(params: WeatherParameters): { score: number; breakdow
 // Scoring functions
 function scoreVisibility(visibilityMiles: number | null): number {
   if (visibilityMiles === null) return 50;
-  if (visibilityMiles >= 65) return 100;
-  if (visibilityMiles >= 50) return 70;
-  if (visibilityMiles >= 30) return 50;
-  if (visibilityMiles >= 10) return 20;
+  if (visibilityMiles >= 10) return 100;
+  if (visibilityMiles >= 8) return 70;
+  if (visibilityMiles >= 5) return 50;
+  if (visibilityMiles >= 3) return 20;
   return 0;
 }
 
