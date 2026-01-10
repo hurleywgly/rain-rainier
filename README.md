@@ -74,7 +74,7 @@ rain_rainier/
 The visibility detection uses a dual approach:
 
 1. **Decision Tree** (Fast Binary Check):
-   - Horizontal visibility ≥ 60 miles
+   - Horizontal visibility ≥ 10 miles
    - No active precipitation
    - Cloud ceiling > 12,000 ft
    - Cloud cover < 75%

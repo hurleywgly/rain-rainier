@@ -247,10 +247,10 @@ def decision_tree_evaluation(params):
     cloud_cover = params['cloud_cover_pct']
 
     # Step 1: Check horizontal visibility
-    if visibility is None or visibility < 60:
+    if visibility is None or visibility < 10:
         return {
             'is_visible': False,
-            'reason': f'Insufficient horizontal visibility ({visibility} mi < 60 mi required)'
+            'reason': f'Insufficient horizontal visibility ({visibility} mi < 10 mi required)'
         }
 
     # Step 2: Check for precipitation
@@ -322,13 +322,13 @@ def score_visibility(visibility_miles):
     """Score horizontal visibility (0-100)"""
     if visibility_miles is None:
         return 50  # Unknown, assume moderate
-    elif visibility_miles >= 65:
-        return 100
-    elif visibility_miles >= 50:
-        return 70
-    elif visibility_miles >= 30:
-        return 50
     elif visibility_miles >= 10:
+        return 100
+    elif visibility_miles >= 8:
+        return 70
+    elif visibility_miles >= 5:
+        return 50
+    elif visibility_miles >= 3:
         return 20
     else:
         return 0
@@ -484,7 +484,7 @@ def lambda_handler(event, context):
     },
     "decision_tree": {
         "is_visible": false,
-        "reason": "Insufficient horizontal visibility (5 mi < 60 mi required)"
+        "reason": "Insufficient horizontal visibility (5 mi < 10 mi required)"
     },
     "timestamp": "2025-11-15T14:00:00Z",
     "next_check": "7:00 AM tomorrow (morning clearing)"
