@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { didot, gotham } from "./fonts";
 import "./globals.css";
+import { PostHogProvider } from "./providers/posthog-provider";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://rain-or-rainier.netlify.app"),
@@ -57,7 +58,7 @@ export default function RootLayout({
         <link rel="preload" href="/images/dry.png" as="image" />
       </head>
       <body className="antialiased">
-        {children}
+        <PostHogProvider>{children}</PostHogProvider>
       </body>
     </html>
   );
