@@ -34,14 +34,15 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/favicon.ico",
-    apple: "/images/rainier-out.png",
+    apple: "/images/apple-touch-icon.png",
   },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: "#1c222b",
 };
 
 export default function RootLayout({
@@ -51,12 +52,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${didot.variable} ${gotham.variable}`}>
-      <head>
-        {/* Preload the most common state video (DRY) for faster initial load */}
-        <link rel="preload" href="/videos/dry.mp4" as="video" type="video/mp4" />
-        {/* Preload poster image for immediate display */}
-        <link rel="preload" href="/images/dry.png" as="image" />
-      </head>
       <body className="antialiased">
         <PostHogProvider>{children}</PostHogProvider>
       </body>
