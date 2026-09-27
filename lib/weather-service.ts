@@ -7,7 +7,8 @@ import type {
   NWSObservation,
   METARResponse,
   WeatherFetchResult,
-  DataStatus
+  DataStatus,
+  WeatherState
 } from '@/types/weather';
 
 // Configuration
@@ -453,7 +454,7 @@ function getStatusText(score: number): string {
 // WEATHER STATE DETERMINATION
 // ============================================================================
 
-function determineWeatherState(params: WeatherParameters): 'SNOWING' | 'RAINING' | 'RAINIER_OUT' | 'DRY' {
+function determineWeatherState(params: WeatherParameters): WeatherState {
   // Priority 1: Snowing (precipitation + temp <= 32°F)
   if (params.hasPrecipitation && params.temperature !== null && params.temperature <= 32) {
     return 'SNOWING';

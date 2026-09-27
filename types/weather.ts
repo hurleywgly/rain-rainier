@@ -1,4 +1,10 @@
-export type WeatherState = 'SNOWING' | 'RAINING' | 'RAINIER_OUT' | 'DRY';
+export const WEATHER_STATES = ['SNOWING', 'RAINING', 'RAINIER_OUT', 'DRY'] as const;
+
+export type WeatherState = (typeof WEATHER_STATES)[number];
+
+export function isWeatherState(value: string): value is WeatherState {
+  return (WEATHER_STATES as readonly string[]).includes(value);
+}
 
 export type DataStatus = 'fresh' | 'stale' | 'error';
 
