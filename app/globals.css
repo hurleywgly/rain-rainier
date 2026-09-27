@@ -4,6 +4,202 @@
 
 @layer base {
   body {
-    @apply overflow-hidden;
+    @apply overflow-hidden bg-[#1c222b] text-white;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Season art direction — ambient layers (see components/Atmosphere.tsx)   */
+/* ------------------------------------------------------------------------ */
+
+@layer components {
+  /* Full-height that respects mobile browser chrome (falls back to 100vh) */
+  .h-viewport {
+    height: 100vh;
+    height: 100svh;
+  }
+
+  .season-vignette {
+    background: radial-gradient(
+      140% 100% at 50% 45%,
+      rgba(0, 0, 0, 0) 55%,
+      rgba(0, 0, 0, 0.35) 100%
+    );
+  }
+
+  /* Rainier Out: warm light breathing over the mountain */
+  .atmo-alpenglow {
+    position: absolute;
+    inset: -20%;
+    background:
+      radial-gradient(40% 35% at 72% 22%, rgba(255, 190, 130, 0.28) 0%, rgba(255, 190, 130, 0) 70%),
+      radial-gradient(60% 40% at 60% 10%, rgba(255, 140, 150, 0.12) 0%, rgba(255, 140, 150, 0) 70%);
+    mix-blend-mode: screen;
+    animation: alpenglow-drift 22s ease-in-out infinite alternate;
+  }
+
+  /* Dry: low marine-layer haze sliding across */
+  .atmo-haze {
+    position: absolute;
+    left: -50%;
+    width: 200%;
+    filter: blur(24px);
+    animation: haze-slide 70s linear infinite;
+  }
+  .atmo-haze--near {
+    top: 52%;
+    height: 30%;
+    background: linear-gradient(
+      90deg,
+      rgba(220, 228, 236, 0) 0%,
+      rgba(220, 228, 236, 0.14) 25%,
+      rgba(220, 228, 236, 0.04) 50%,
+      rgba(220, 228, 236, 0.16) 75%,
+      rgba(220, 228, 236, 0) 100%
+    );
+  }
+  .atmo-haze--far {
+    top: 20%;
+    height: 24%;
+    opacity: 0.7;
+    background: linear-gradient(
+      90deg,
+      rgba(220, 228, 236, 0.1) 0%,
+      rgba(220, 228, 236, 0) 30%,
+      rgba(220, 228, 236, 0.12) 60%,
+      rgba(220, 228, 236, 0) 100%
+    );
+    animation-duration: 110s;
+    animation-direction: reverse;
+  }
+
+  /* Raining: fine angled streaks, two depths */
+  .atmo-rain {
+    position: absolute;
+    inset: -10% -10%;
+    transform: rotate(8deg);
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgba(210, 235, 240, 0) 0px,
+      rgba(210, 235, 240, 0) 11px,
+      rgba(210, 235, 240, 0.5) 12px,
+      rgba(210, 235, 240, 0) 13px
+    );
+    -webkit-mask-image: repeating-linear-gradient(
+      180deg,
+      #000 0px,
+      #000 26px,
+      transparent 26px,
+      transparent 150px
+    );
+    mask-image: repeating-linear-gradient(
+      180deg,
+      #000 0px,
+      #000 26px,
+      transparent 26px,
+      transparent 150px
+    );
+    animation: rain-fall 0.9s linear infinite;
+  }
+  .atmo-rain--far {
+    opacity: 0.1;
+    background-size: 37px 100%;
+    animation-duration: 1.3s;
+  }
+  .atmo-rain--near {
+    opacity: 0.14;
+    background-size: 83px 100%;
+    -webkit-mask-size: 100% 210px;
+    mask-size: 100% 210px;
+  }
+
+  /* Snowing: two depths of soft flakes drifting down and across */
+  .atmo-snow {
+    position: absolute;
+    inset: -10%;
+    background-repeat: repeat;
+    animation: snow-fall 18s linear infinite;
+  }
+  .atmo-snow--far {
+    opacity: 0.55;
+    background-image:
+      radial-gradient(1.5px 1.5px at 20px 30px, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 90px 120px, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 150px 60px, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 60px 170px, #fff 50%, transparent 51%);
+    background-size: 200px 200px;
+    animation-duration: 26s;
+  }
+  .atmo-snow--near {
+    opacity: 0.75;
+    filter: blur(0.6px);
+    background-image:
+      radial-gradient(3px 3px at 40px 60px, #fff 50%, transparent 51%),
+      radial-gradient(2.5px 2.5px at 220px 180px, #fff 50%, transparent 51%),
+      radial-gradient(3px 3px at 300px 40px, #fff 50%, transparent 51%);
+    background-size: 360px 360px;
+  }
+
+  /* Typography lift — tinted per season via --season-glow */
+  .season-headline {
+    text-shadow:
+      0 2px 24px var(--season-glow, rgba(0, 0, 0, 0.3)),
+      0 1px 2px rgba(0, 0, 0, 0.45);
+  }
+  .season-text-shadow {
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Headline + metrics entrance */
+  .animate-rise {
+    animation: rise 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .animate-season-in {
+    animation: season-in 1200ms ease-out both;
+  }
+}
+
+@keyframes alpenglow-drift {
+  from { transform: translate3d(-2%, 1%, 0) scale(1); opacity: 0.8; }
+  to   { transform: translate3d(2%, -1%, 0) scale(1.06); opacity: 1; }
+}
+@keyframes haze-slide {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(25%, 0, 0); }
+}
+@keyframes rain-fall {
+  from { -webkit-mask-position: 0 0; mask-position: 0 0; }
+  to   { -webkit-mask-position: 0 150px; mask-position: 0 150px; }
+}
+.atmo-rain--near { animation-name: rain-fall-near; }
+@keyframes rain-fall-near {
+  from { -webkit-mask-position: 0 0; mask-position: 0 0; }
+  to   { -webkit-mask-position: 0 210px; mask-position: 0 210px; }
+}
+@keyframes snow-fall {
+  from { background-position: 0 0; }
+  to   { background-position: 60px 360px; }
+}
+.atmo-snow--far { animation-name: snow-fall-far; }
+@keyframes snow-fall-far {
+  from { background-position: 0 0; }
+  to   { background-position: 30px 200px; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes season-in {
+  from { opacity: 0; transform: scale(1.03); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

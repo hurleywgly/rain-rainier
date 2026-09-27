@@ -2,10 +2,19 @@
 
 export function LoadingState() {
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
-        <p className="text-white/80 font-serif text-2xl">Loading Seattle weather...</p>
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-[radial-gradient(120%_90%_at_20%_0%,#3b4654_0%,#1c222b_55%,#12161c_100%)]"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="text-center space-y-5 px-6">
+        <div
+          className="w-12 h-12 border-2 border-white/20 border-t-cream rounded-full animate-spin mx-auto motion-reduce:animate-none"
+          aria-hidden="true"
+        />
+        <p className="text-cream/90 font-serif text-2xl sm:text-3xl tracking-[-0.02em] animate-pulse motion-reduce:animate-none">
+          Loading Seattle weather...
+        </p>
       </div>
     </div>
   );

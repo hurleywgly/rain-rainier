@@ -6,17 +6,19 @@ export function Footer() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-20 px-12 sm:px-20 lg:px-36 pb-4 sm:pb-6">
+    <footer className="fixed bottom-0 left-0 right-0 z-20 px-6 sm:px-20 lg:px-36 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6">
       {/* Mobile/Tablet/Small Desktop: Flex row with Info Icon and Credits */}
       <div className="xl:hidden flex items-center justify-between w-full relative">
         {/* Info Icon with Toggle */}
         <div className="relative">
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="text-white p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors"
+            className="text-white p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-cream"
             aria-label="Show data source"
+            aria-expanded={isOpen}
+            aria-controls="data-source-note"
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="12" cy="12" r="11.5" stroke="white" />
               <text x="12" y="16" textAnchor="middle" fill="white" fontFamily="serif" fontSize="14" fontWeight="bold">i</text>
             </svg>
@@ -24,7 +26,7 @@ export function Footer() {
 
           {/* Data attribution popup */}
           {isOpen && (
-            <div className="absolute bottom-full left-0 mb-2 w-64 p-3 bg-black/80 backdrop-blur-sm rounded-lg border border-white/10 text-left">
+            <div id="data-source-note" className="absolute bottom-full left-0 mb-2 w-64 p-3 bg-black/75 backdrop-blur-md rounded-xl border border-white/15 text-left shadow-2xl animate-rise">
               <p className="font-serif text-sm text-white leading-tight">
                 Data here comes from the National Weather Service & Aviation Weather Center.
               </p>
@@ -51,7 +53,7 @@ export function Footer() {
       {/* Built by: Gotham Book 24pt, @rywigs: Didot Bold 24pt cream */}
       <div className="hidden xl:flex items-center justify-center">
         {/* Center - Data attribution */}
-        <p className="font-serif text-2xl text-white text-center">
+        <p className="font-serif italic text-xl text-white/85 text-center">
           Data here comes from the National Weather Service & Aviation Weather Center.
         </p>
 

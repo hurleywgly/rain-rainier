@@ -1,13 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackgroundVideo } from '@/components/BackgroundVideo';
 import { WeatherOverlay } from '@/components/WeatherOverlay';
 import { LoadingState } from '@/components/LoadingState';
 import { Footer } from '@/components/Footer';
-import type { WeatherData } from '@/types/weather';
+import { isWeatherState, type WeatherData } from '@/types/weather';
 
 const REFRESH_INTERVAL = 60 * 1000; // 1 minute in milliseconds
+// Focus and visibilitychange usually fire together when a tab returns; skip
+// back-to-back refetches inside this window.
+const MIN_REFETCH_GAP = 10 * 1000;
 
 export default function Home({
   searchParams,
@@ -28,8 +31,11 @@ export default function Home({
   const isDebugMode =
     searchParams.debug?.toLowerCase() === 'true' || searchParams.debug === '1';
 
+  const lastFetchStartedAt = useRef(0);
+
   const fetchWeather = useCallback(async () => {
     const startTime = performance.now();
+    lastFetchStartedAt.current = Date.now();
 
     try {
       const response = await fetch('/api/weather', {
@@ -54,11 +60,11 @@ export default function Home({
       setLastUpdated(Date.now());
 
       // Allow overriding state via URL parameter for testing (e.g. ?state=SNOWING)
+      // (dev builds only — the check is compiled out of production bundles)
       if (searchParams.state && process.env.NODE_ENV === 'development') {
         const overrideState = searchParams.state.toUpperCase();
-        const validStates = ['RAINING', 'RAINIER_OUT', 'DRY', 'SNOWING'] as const;
-        if (validStates.includes(overrideState as typeof validStates[number])) {
-          data.state = overrideState as typeof validStates[number];
+        if (isWeatherState(overrideState)) {
+          data.state = overrideState;
         }
       }
 
@@ -77,23 +83,32 @@ export default function Home({
     fetchWeather();
 
     // Set up auto-refresh interval and focus/visibility refresh
+    // Don't poll while the tab is hidden; we refetch when it comes back.
     const interval = setInterval(() => {
-      fetchWeather();
+      if (document.visibilityState === 'visible') {
+        fetchWeather();
+      }
     }, REFRESH_INTERVAL);
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+    const refetchIfIdle = () => {
+      if (Date.now() - lastFetchStartedAt.current >= MIN_REFETCH_GAP) {
         fetchWeather();
       }
     };
 
-    window.addEventListener('focus', fetchWeather);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refetchIfIdle();
+      }
+    };
+
+    window.addEventListener('focus', refetchIfIdle);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Cleanup interval on unmount
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', fetchWeather);
+      window.removeEventListener('focus', refetchIfIdle);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [fetchWeather]);
@@ -104,26 +119,28 @@ export default function Home({
 
   if (error || !weatherData) {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-red-900 to-red-950 flex items-center justify-center">
-        <div className="text-center space-y-4 px-4">
-          <h1 className="text-white font-serif text-4xl sm:text-6xl">Weather Unavailable</h1>
-          <p className="text-white/80 font-sans text-lg">Please try again later.</p>
+      <main className="fixed inset-0 flex items-center justify-center bg-[radial-gradient(120%_90%_at_20%_0%,#3b4654_0%,#1c222b_55%,#12161c_100%)]">
+        <div className="text-center space-y-4 px-6 animate-rise" role="alert">
+          <h1 className="text-cream font-serif font-bold tracking-[-0.04em] text-5xl sm:text-7xl">
+            Weather Unavailable
+          </h1>
+          <p className="text-white/75 font-sans text-base sm:text-lg">Please try again later.</p>
           <button
             onClick={() => {
               setLoading(true);
               fetchWeather();
             }}
-            className="mt-6 px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-sans transition-colors"
+            className="mt-6 px-7 py-3 rounded-full border border-white/25 bg-white/10 hover:bg-white/20 text-white font-sans text-sm tracking-wide transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream"
           >
             Retry
           </button>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <main className="relative w-full h-screen overflow-hidden">
+    <main className="relative w-full h-viewport overflow-hidden">
       <BackgroundVideo state={weatherData.state} />
       <WeatherOverlay data={weatherData} />
       <Footer />
