@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { BackgroundVideo } from '@/components/BackgroundVideo';
 import { WeatherOverlay } from '@/components/WeatherOverlay';
 import { LoadingState } from '@/components/LoadingState';
@@ -12,11 +13,14 @@ const REFRESH_INTERVAL = 60 * 1000; // 1 minute in milliseconds
 // back-to-back refetches inside this window.
 const MIN_REFETCH_GAP = 10 * 1000;
 
-export default function Home({
-  searchParams,
-}: {
-  searchParams: { state?: string; debug?: string };
-}) {
+export default function Home() {
+  return <Suspense fallback={<LoadingState />}><WeatherHome /></Suspense>;
+}
+
+function WeatherHome() {
+  const searchParams = useSearchParams();
+  const stateOverride = searchParams.get('state');
+  const debug = searchParams.get('debug');
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -29,7 +33,7 @@ export default function Home({
   } | null>(null);
 
   const isDebugMode =
-    searchParams.debug?.toLowerCase() === 'true' || searchParams.debug === '1';
+    debug?.toLowerCase() === 'true' || debug === '1';
 
   const lastFetchStartedAt = useRef(0);
 
@@ -61,8 +65,8 @@ export default function Home({
 
       // Allow overriding state via URL parameter for testing (e.g. ?state=SNOWING)
       // (dev builds only — the check is compiled out of production bundles)
-      if (searchParams.state && process.env.NODE_ENV === 'development') {
-        const overrideState = searchParams.state.toUpperCase();
+      if (stateOverride && process.env.NODE_ENV === 'development') {
+        const overrideState = stateOverride.toUpperCase();
         if (isWeatherState(overrideState)) {
           data.state = overrideState;
         }
@@ -76,7 +80,7 @@ export default function Home({
     } finally {
       setLoading(false);
     }
-  }, [searchParams.state]);
+  }, [stateOverride]);
 
   useEffect(() => {
     // Initial fetch

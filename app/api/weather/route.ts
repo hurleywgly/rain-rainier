@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getWeatherData } from '@/lib/weather-service';
 
-const CACHE_SECONDS = 60;
-
-export const revalidate = CACHE_SECONDS; // Revalidate every minute
+export const revalidate = 60; // Next requires a statically analyzable literal.
+const CACHE_SECONDS = revalidate;
 
 export async function GET() {
   try {
